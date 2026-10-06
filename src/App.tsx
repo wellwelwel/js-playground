@@ -1,3 +1,4 @@
+import type { AppProps } from './types';
 import { useCallback, useEffect, useState } from 'react';
 import { CodeEditor } from './components/CodeEditor';
 import { ConsolePanel } from './components/ConsolePanel';
@@ -8,10 +9,6 @@ import { usePlaygroundConsole } from './hooks/usePlaygroundConsole';
 import { useSharedCodeNavigation } from './hooks/useSharedCodeNavigation';
 import { useShareLink } from './hooks/useShareLink';
 import { writeDraft } from './utils/codeDraft';
-
-type AppProps = {
-  initialCode: string;
-};
 
 export const App = ({ initialCode }: AppProps) => {
   const [code, setCode] = useState(initialCode);

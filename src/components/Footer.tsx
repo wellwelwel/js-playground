@@ -1,14 +1,10 @@
-const isMac =
-  typeof navigator !== 'undefined' &&
-  /Mac|iP(hone|ad|od)/.test(navigator.platform);
+import { SHORTCUTS } from '../constants';
 
+const isMac = /Mac|iP(hone|ad|od)/.test(navigator.platform);
 const modifier = isMac ? '⌘' : 'Ctrl';
 
-const shortcuts = [
-  { label: 'Run', keys: [modifier, 'Enter'] },
-  { label: 'Toggle comment', keys: [modifier, '/'] },
-  { label: 'Clear', keys: [modifier, 'L'] },
-];
+const displayKey = (key: string) =>
+  key.length === 1 ? key.toUpperCase() : key;
 
 const GitHubIcon = () => (
   <svg
@@ -25,11 +21,11 @@ const GitHubIcon = () => (
 export const Footer = () => (
   <footer className='flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 border-t border-border bg-panel text-muted text-xs'>
     <div className='flex flex-wrap items-center gap-x-4 gap-y-1'>
-      {shortcuts.map((shortcut) => (
+      {Object.values(SHORTCUTS).map((shortcut) => (
         <span key={shortcut.label} className='flex items-center gap-1.5'>
           <span>{shortcut.label}</span>
           <span className='flex items-center gap-1'>
-            {shortcut.keys.map((key) => (
+            {[modifier, displayKey(shortcut.key)].map((key) => (
               <kbd
                 key={key}
                 className='rounded border border-border bg-bg px-1.5 py-0.5 font-mono text-[11px] text-text'

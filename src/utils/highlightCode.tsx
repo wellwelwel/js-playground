@@ -1,7 +1,7 @@
 import type { PrismTheme } from 'prism-react-renderer';
 import { Highlight, themes } from 'prism-react-renderer';
 
-export const editorTheme: PrismTheme = {
+const editorTheme: PrismTheme = {
   ...themes.dracula,
   styles: [
     ...themes.dracula.styles,

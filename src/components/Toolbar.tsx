@@ -1,11 +1,4 @@
-type ToolbarProps = {
-  onRun: () => void;
-  onClear: () => void;
-  onShare: () => void;
-  linkCopied: boolean;
-  persistLogs: boolean;
-  onPersistLogsChange: (persist: boolean) => void;
-};
+import type { ToolbarProps } from '../types';
 
 const secondaryButtonClassName =
   'px-4 py-1.5 rounded-md border border-border bg-transparent text-text text-sm font-semibold cursor-pointer transition hover:brightness-110';
