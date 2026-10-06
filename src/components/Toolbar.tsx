@@ -1,4 +1,5 @@
 import type { ToolbarProps } from '../types';
+import { LinkIcon } from './icons';
 
 const secondaryButtonClassName =
   'px-4 py-1.5 rounded-md border border-border bg-transparent text-text text-sm font-semibold cursor-pointer transition hover:brightness-110';
@@ -39,9 +40,10 @@ export const Toolbar = ({
       </button>
       <button
         type='button'
-        className={`${secondaryButtonClassName} min-w-24`}
+        className={`${secondaryButtonClassName} inline-flex items-center justify-center gap-1.5 min-w-28`}
         onClick={onShare}
       >
+        <LinkIcon />
         {linkCopied ? 'Copied!' : 'Share'}
       </button>
     </div>
