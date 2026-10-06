@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "engineering": {
+      "source": "wellwelwel/skills",
+      "sourceType": "github",
+      "skillPath": "skills/development/engineering/SKILL.md",
+      "computedHash": "3004865a0b03e8fc60f3f8b9818d7258253de61f9469f315ce4b30350bcfeebe"
+    }
+  }
+}
