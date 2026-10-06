@@ -1,32 +1,51 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { CodeEditor } from './components/CodeEditor';
 import { ConsolePanel } from './components/ConsolePanel';
 import { Footer } from './components/Footer';
 import { Toolbar } from './components/Toolbar';
 import { DEFAULT_CODE } from './constants';
 import { usePlaygroundConsole } from './hooks/usePlaygroundConsole';
+import { useSharedCodeNavigation } from './hooks/useSharedCodeNavigation';
+import { useShareLink } from './hooks/useShareLink';
+import { writeDraft } from './utils/codeDraft';
 
-export const App = () => {
-  const [code, setCode] = useState(DEFAULT_CODE);
+type AppProps = {
+  initialCode: string;
+};
+
+export const App = ({ initialCode }: AppProps) => {
+  const [code, setCode] = useState(initialCode);
   const [persistLogs, setPersistLogs] = useState(false);
   const { logs, sandboxDocument, runId, run, clear } = usePlaygroundConsole();
+  const { share, linkCopied } = useShareLink(code);
 
   const runCurrentCode = () => run(code, persistLogs);
 
-  useEffect(() => {
-    run(DEFAULT_CODE);
-  }, [run]);
+  const handleCodeChange = useCallback(
+    (nextCode: string) => {
+      setCode(nextCode);
+      if (!persistLogs) clear();
+    },
+    [persistLogs, clear]
+  );
 
-  const handleCodeChange = (nextCode: string) => {
-    setCode(nextCode);
-    if (!persistLogs) clear();
-  };
+  useSharedCodeNavigation(handleCodeChange);
+
+  useEffect(() => {
+    if (initialCode === DEFAULT_CODE) run(DEFAULT_CODE);
+  }, [run, initialCode]);
+
+  useEffect(() => {
+    writeDraft(code);
+  }, [code]);
 
   return (
     <div className='flex flex-col h-full'>
       <Toolbar
         onRun={runCurrentCode}
         onClear={clear}
+        onShare={share}
+        linkCopied={linkCopied}
         persistLogs={persistLogs}
         onPersistLogsChange={setPersistLogs}
       />
