@@ -23,6 +23,9 @@ const tokenKinds: Record<ConsoleTokenKind, true> = {
   nullish: true,
   symbol: true,
   function: true,
+  functionName: true,
+  accessor: true,
+  hidden: true,
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

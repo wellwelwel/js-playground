@@ -28,6 +28,49 @@ const sandbox = (marker: string, token: string, encodedCode: string) => {
   const isTypedArray = (value: object): value is TypedArray =>
     ArrayBuffer.isView(value) && !(value instanceof DataView);
 
+  const isArrayIndex = (key: string | symbol) =>
+    typeof key === 'string' && /^(?:0|[1-9]\d*)$/.test(key);
+
+  const classNameOf = (value: object): string => {
+    const tag = Object.prototype.toString.call(value).slice(8, -1);
+    if (tag !== 'Object') return tag;
+
+    const prototype: object | null = Object.getPrototypeOf(value);
+    const constructorName = prototype?.constructor?.name || '';
+
+    return constructorName === 'Object' ? '' : constructorName;
+  };
+
+  const joinTokens = (items: ConsoleToken[][]): ConsoleToken[] =>
+    items.flatMap((item, index) =>
+      index > 0 ? [...plainTokens(', '), ...item] : item
+    );
+
+  const serializeList = (
+    open: string,
+    close: string,
+    items: ConsoleToken[][]
+  ): ConsoleToken[] => [
+    ...plainTokens(open),
+    ...joinTokens(items),
+    ...plainTokens(close),
+  ];
+
+  const serializeBraced = (name: string, items: ConsoleToken[][]) => {
+    const space = padding(items.length);
+    const open = name === '' ? '{' : `${name} {`;
+
+    return serializeList(`${open}${space}`, `${space}}`, items);
+  };
+
+  const safely = (describe: () => ConsoleToken[]): ConsoleToken[] => {
+    try {
+      return describe();
+    } catch {
+      return plainTokens('[Unserializable]');
+    }
+  };
+
   const postToParent = (method: string, tokens: ConsoleToken[]) => {
     window.parent.postMessage({ marker, token, method, tokens }, '*');
   };
@@ -37,37 +80,13 @@ const sandbox = (marker: string, token: string, encodedCode: string) => {
     isTopLevel: boolean,
     visited: WeakSet<object>
   ): ConsoleToken[] => {
-    const serializeNested = (item: unknown) => serialize(item, false, visited);
+    const serializeNested = (item: unknown) =>
+      safely(() => serialize(item, false, visited));
 
-    const serializeList = <Item>(
-      open: string,
-      close: string,
-      items: Item[],
-      serializeItem: (item: Item) => ConsoleToken[]
-    ): ConsoleToken[] => [
-      ...plainTokens(open),
-      ...items.flatMap((item, index) =>
-        index > 0
-          ? [...plainTokens(', '), ...serializeItem(item)]
-          : serializeItem(item)
-      ),
-      ...plainTokens(close),
-    ];
-
-    const serializeBraced = <Item>(
-      label: string,
-      items: Item[],
-      serializeItem: (item: Item) => ConsoleToken[]
-    ) => {
-      const space = padding(items.length);
-
-      return serializeList(
-        `${label}{${space}`,
-        `${space}}`,
-        items,
-        serializeItem
+    const serializeElements = (items: unknown[]) =>
+      Array.from(items, (item, index) =>
+        index in items ? serializeNested(item) : toTokens('empty', 'nullish')
       );
-    };
 
     const serializeEntry = ([key, entryValue]: [unknown, unknown]) => [
       ...serializeNested(key),
@@ -75,10 +94,38 @@ const sandbox = (marker: string, token: string, encodedCode: string) => {
       ...serializeNested(entryValue),
     ];
 
-    const serializeProperty = ([key, item]: [string, unknown]) => [
-      ...plainTokens(`${key}: `),
-      ...serializeNested(item),
-    ];
+    const serializeDescriptor = (
+      descriptor: PropertyDescriptor | undefined
+    ): ConsoleToken[] => {
+      if (descriptor?.get)
+        return toTokens(
+          descriptor.set ? '[Getter/Setter]' : '[Getter]',
+          'accessor'
+        );
+      if (descriptor?.set) return toTokens('[Setter]', 'accessor');
+
+      return serializeNested(descriptor?.value);
+    };
+
+    const serializeProperty = (owner: object, key: string | symbol) => {
+      const descriptor = Object.getOwnPropertyDescriptor(owner, key);
+
+      return [
+        ...toTokens(
+          `${String(key)}: `,
+          descriptor?.enumerable ? 'plain' : 'hidden'
+        ),
+        ...serializeDescriptor(descriptor),
+      ];
+    };
+
+    const serializeProperties = (
+      owner: object,
+      isListed: (key: string | symbol) => boolean = () => true
+    ) =>
+      Reflect.ownKeys(owner)
+        .filter(isListed)
+        .map((key) => serializeProperty(owner, key));
 
     if (value === null) return toTokens('null', 'nullish');
     if (typeof value === 'string')
@@ -91,7 +138,10 @@ const sandbox = (marker: string, token: string, encodedCode: string) => {
     if (typeof value === 'undefined') return toTokens('undefined', 'nullish');
     if (typeof value === 'symbol') return toTokens(value.toString(), 'symbol');
     if (typeof value === 'function')
-      return toTokens(`ƒ ${value.name || 'anonymous'}()`, 'function');
+      return [
+        ...toTokens('ƒ ', 'function'),
+        ...toTokens(`${value.name || 'anonymous'}()`, 'functionName'),
+      ];
     if (visited.has(value)) return plainTokens('[Circular]');
 
     if (value instanceof Error)
@@ -127,8 +177,7 @@ const sandbox = (marker: string, token: string, encodedCode: string) => {
       return serializeList(
         `${typeName}(${value.length}) [`,
         ']',
-        Array.from(value),
-        serializeNested
+        Array.from(value, serializeNested)
       );
     }
     if (value instanceof ArrayBuffer)
@@ -137,41 +186,32 @@ const sandbox = (marker: string, token: string, encodedCode: string) => {
     visited.add(value);
     try {
       if (Array.isArray(value))
-        return serializeList<unknown>('[', ']', value, serializeNested);
+        return serializeList('[', ']', [
+          ...serializeElements(value),
+          ...serializeProperties(
+            value,
+            (key) => key !== 'length' && !isArrayIndex(key)
+          ),
+        ]);
       if (value instanceof Set)
-        return serializeBraced<unknown>(
-          `Set(${value.size}) `,
-          [...value],
-          serializeNested
+        return serializeBraced(
+          `Set(${value.size})`,
+          [...value].map(serializeNested)
         );
       if (value instanceof Map)
-        return serializeBraced<[unknown, unknown]>(
-          `Map(${value.size}) `,
-          [...value],
-          serializeEntry
+        return serializeBraced(
+          `Map(${value.size})`,
+          [...value].map(serializeEntry)
         );
 
-      const prototype = Object.getPrototypeOf(value);
-      const constructorName = value.constructor?.name || '';
-      const isPlainObject =
-        prototype === null ||
-        prototype === Object.prototype ||
-        constructorName === '' ||
-        constructorName === 'Object';
-      const prefix = isPlainObject ? '' : `${constructorName} `;
-
-      return serializeBraced<[string, unknown]>(
-        prefix,
-        Object.entries(value),
-        serializeProperty
-      );
+      return serializeBraced(classNameOf(value), serializeProperties(value));
     } finally {
       visited.delete(value);
     }
   };
 
   const serializeTopLevel = (value: unknown) =>
-    serialize(value, true, new WeakSet());
+    safely(() => serialize(value, true, new WeakSet()));
 
   const formatArguments = (values: unknown[]): ConsoleToken[] =>
     values.flatMap((value, index) =>

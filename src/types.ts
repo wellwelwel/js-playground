@@ -4,7 +4,16 @@ export type ConsoleMethod =
 export type InterceptedConsoleMethod = Exclude<ConsoleMethod, 'result'>;
 
 export type ConsoleTokenKind =
-  'plain' | 'string' | 'number' | 'boolean' | 'nullish' | 'symbol' | 'function';
+  | 'plain'
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'nullish'
+  | 'symbol'
+  | 'function'
+  | 'functionName'
+  | 'accessor'
+  | 'hidden';
 
 export type ConsoleToken = {
   text: string;

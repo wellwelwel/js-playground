@@ -20,7 +20,10 @@ const tokenStyles: Record<ConsoleTokenKind, string> = {
   boolean: 'text-accent',
   nullish: 'text-muted',
   symbol: 'text-accent',
-  function: 'text-muted italic',
+  function: 'text-accent italic',
+  functionName: 'text-function',
+  accessor: 'text-muted italic',
+  hidden: 'text-muted',
 };
 
 const monochromeMethods: ReadonlySet<ConsoleMethod> = new Set([
